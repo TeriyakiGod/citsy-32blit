@@ -73,8 +73,10 @@ void scan_games() {
     g_selected = 0;
 
     File::add_buffer_file("mossland.bitsy", asset_mossland_bitsy, asset_mossland_bitsy_length);
+    File::add_buffer_file("sandbox.bitsy", asset_sandbox_bitsy, asset_sandbox_bitsy_length);
 
     add_game("mossland.bitsy", "Mossland", true);
+    add_game("sandbox.bitsy", "Sandbox", true);
 
     scan_directory("");
     scan_directory(".");

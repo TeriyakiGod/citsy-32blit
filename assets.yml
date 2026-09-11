@@ -6,3 +6,6 @@ assets.cpp:
   assets/mossland.bitsy:
     name: asset_mossland_bitsy
     type: raw/binary
+  assets/sandbox.bitsy:
+    name: asset_sandbox_bitsy
+    type: raw/binary
