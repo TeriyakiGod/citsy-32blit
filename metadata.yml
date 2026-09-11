@@ -1,0 +1,10 @@
+title: citsy
+description: Bitsy player powered by the citsy engine
+author: TeriyakiGod
+splash:
+  file: assets/no-image.png
+icon:
+  file: assets/no-icon.png
+version: v0.1.0
+category: game
+url: https://github.com/TeriyakiGod/citsy-32blit

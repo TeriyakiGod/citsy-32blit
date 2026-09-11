@@ -1,0 +1,8 @@
+# Packed into assets.cpp / assets.hpp by the 32blit asset tool.
+
+assets.cpp:
+  assets/no-image.png:
+    name: asset_no_image
+  assets/mossland.bitsy:
+    name: asset_mossland_bitsy
+    type: raw/binary
