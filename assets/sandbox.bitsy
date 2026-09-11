@@ -1,4 +1,4 @@
-sandbox
+{rbw}sandbox{/rbw}
 
 # BITSY VERSION 8.15
 
@@ -32,6 +32,8 @@ ROOM 0
 0,a,a,a,a,a,a,a,a,a,a,a,a,a,a,0
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 NAME example room
+ITM 0 4,9
+ITM 1 12,4
 PAL 0
 TUNE 2
 
@@ -55,7 +57,7 @@ SPR A
 10111101
 00100100
 00100100
-POS 0 4,4
+POS 0 8,7
 
 SPR a
 00000000
@@ -68,7 +70,7 @@ SPR a
 00100100
 NAME cat
 DLG 0
-POS 0 8,12
+POS 0 8,11
 BLIP 1
 
 ITM 0
@@ -97,11 +99,11 @@ DLG 2
 BLIP 2
 
 DLG 0
-I'm a cat
+{rbw}{wvy}I'm a cat{/wvy}{/rbw}
 NAME cat dialog
 
 DLG 1
-You found a nice warm cup of tea
+{shk}You found a nice warm cup of tea {/shk} {drwi "tea"}
 NAME tea dialog
 
 DLG 2
