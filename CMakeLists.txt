@@ -53,6 +53,20 @@ set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_EXTENSIONS OFF)
 
 target_link_libraries(${PROJECT_NAME} citsy)
 
+# 32blit PIC stdlibs are GCC 12. GCC 13+ libstdc++ headers call
+# std::string::_M_replace_cold, which those archives do not provide.
+if(32BLIT_HW AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13)
+  execute_process(
+    COMMAND ${CMAKE_CXX_COMPILER} -mcpu=cortex-m7 -mthumb -mfloat-abi=hard -mfpu=fpv5-d16
+            -print-file-name=libstdc++_nano.a
+    OUTPUT_VARIABLE CITSY_LIBSTDCXX_NANO
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  if(EXISTS "${CITSY_LIBSTDCXX_NANO}")
+    target_link_libraries(${PROJECT_NAME} ${CITSY_LIBSTDCXX_NANO})
+  endif()
+endif()
+
 if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
   set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html")
 else()

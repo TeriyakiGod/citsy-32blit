@@ -107,13 +107,13 @@ void CitsyBlitHost::draw() const {
     blit::Surface src(pixels, blit::PixelFormat::P, blit::Size(kVideo, kVideo));
     src.palette = const_cast<blit::Pen*>(pens_);
 
-    const int scale = std::max(1, std::min(
+    const int scale = std::max(1, static_cast<int>(std::min(
         blit::screen.bounds.w / kVideo,
-        blit::screen.bounds.h / kVideo));
+        blit::screen.bounds.h / kVideo)));
     const int dw = kVideo * scale;
     const int dh = kVideo * scale;
-    const int dx = (blit::screen.bounds.w - dw) / 2;
-    const int dy = (blit::screen.bounds.h - dh) / 2;
+    const int dx = (static_cast<int>(blit::screen.bounds.w) - dw) / 2;
+    const int dy = (static_cast<int>(blit::screen.bounds.h) - dh) / 2;
 
     blit::screen.stretch_blit(
         &src,
