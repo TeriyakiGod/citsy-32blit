@@ -11,6 +11,10 @@ else()
   add_compile_options("-Wall" "-Wextra" "-Wdouble-promotion" "-Wno-unused-parameter")
 endif()
 
+# Pico SDK defaults to -fno-exceptions. Must be set before find_package(32BLIT)
+# pulls in pico_sdk_init / pico_cxx_options.
+set(PICO_CXX_ENABLE_EXCEPTIONS ON CACHE BOOL "citsy ParseError uses C++ exceptions")
+
 find_package(32BLIT CONFIG REQUIRED PATHS ../32blit-sdk $ENV{PATH_32BLIT_SDK})
 
 # ---------------------------------------------------------------------------
@@ -34,12 +38,16 @@ else()
   FetchContent_MakeAvailable(citsy)
 endif()
 
-# 32blit.toolchain uses -fno-exceptions, -fsingle-precision-constant, and
-# -Werror=double-promotion. citsy throws ParseError (caught by the player) and
-# uses double time values in the Host API; GCC keeps the last of each flag pair.
+# Embedded toolchains (STM32, Pico/VGC, Emscripten) compile with
+# -fno-exceptions. citsy throws ParseError and the player catches it.
+if(NOT MSVC)
+  target_compile_options(citsy PUBLIC $<$<COMPILE_LANGUAGE:CXX>:-fexceptions>)
+endif()
+
+# STM32: 32blit.toolchain also forces single-precision literals and treats
+# double-promotion as an error. GCC keeps the last of each flag pair.
 if(32BLIT_HW)
   target_compile_options(citsy PUBLIC
-    -fexceptions
     -fno-single-precision-constant
     -Wno-error=double-promotion
   )
@@ -52,6 +60,17 @@ set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_EXTENSIONS OFF)
 
 target_link_libraries(${PROJECT_NAME} citsy)
+
+if(NOT MSVC)
+  # Pico's pico_cxx_options INTERFACE -fno-exceptions can still win on the
+  # executable; force EH after linking.
+  target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fexceptions>)
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  target_compile_options(${PROJECT_NAME} PRIVATE -sDISABLE_EXCEPTION_CATCHING=0)
+  target_link_options(${PROJECT_NAME} PRIVATE -fexceptions -sDISABLE_EXCEPTION_CATCHING=0)
+endif()
 
 # 32blit PIC stdlibs are GCC 12. GCC 13+ libstdc++ headers call
 # std::string::_M_replace_cold, which those archives do not provide.

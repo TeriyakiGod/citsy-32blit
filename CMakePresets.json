@@ -14,7 +14,8 @@
                 "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/../32blit-sdk/pico2.toolchain",
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_ASM_COMPILER": "/usr/bin/arm-none-eabi-gcc"
+                "CMAKE_ASM_COMPILER": "/usr/bin/arm-none-eabi-gcc",
+                "PICO_CXX_ENABLE_EXCEPTIONS": "ON"
             }
         },
         {
