@@ -34,10 +34,15 @@ else()
   FetchContent_MakeAvailable(citsy)
 endif()
 
-# 32blit.toolchain compiles with -fno-exceptions. citsy throws ParseError and
-# the player catches it, so both need EH. GCC uses the last of the two flags.
+# 32blit.toolchain uses -fno-exceptions, -fsingle-precision-constant, and
+# -Werror=double-promotion. citsy throws ParseError (caught by the player) and
+# uses double time values in the Host API; GCC keeps the last of each flag pair.
 if(32BLIT_HW)
-  target_compile_options(citsy PUBLIC -fexceptions)
+  target_compile_options(citsy PUBLIC
+    -fexceptions
+    -fno-single-precision-constant
+    -Wno-error=double-promotion
+  )
 endif()
 
 blit_executable(${PROJECT_NAME} ${PROJECT_SOURCE})

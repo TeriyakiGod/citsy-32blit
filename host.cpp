@@ -30,7 +30,7 @@ void CitsyBlitHost::poll_input() {
 }
 
 void CitsyBlitHost::set_delta(double dt_ms) {
-    dt_ms_ = dt_ms > 0.0 ? dt_ms : 16.667;
+    dt_ms_ = dt_ms > 0 ? dt_ms : 16.667;
 }
 
 double CitsyBlitHost::delta_time_ms() const {
