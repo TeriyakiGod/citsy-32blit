@@ -34,6 +34,12 @@ else()
   FetchContent_MakeAvailable(citsy)
 endif()
 
+# 32blit.toolchain compiles with -fno-exceptions. citsy throws ParseError and
+# the player catches it, so both need EH. GCC uses the last of the two flags.
+if(32BLIT_HW)
+  target_compile_options(citsy PUBLIC -fexceptions)
+endif()
+
 blit_executable(${PROJECT_NAME} ${PROJECT_SOURCE})
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 20)
