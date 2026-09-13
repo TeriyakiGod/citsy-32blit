@@ -155,17 +155,27 @@ jobs:
         run: |
           cmake --build . --config $BUILD_TYPE --target package
 
+      # softprops/action-gh-release globs fail on Windows when runner.workspace
+      # contains backslashes (e.g. D:\a\...). Normalize to forward slashes.
+      - name: Normalize package path
+        if: github.event_name == 'release' && matrix.release-suffix != ''
+        shell: bash
+        run: |
+          pkg_dir="${{ runner.workspace }}/main/build"
+          pkg_dir="${pkg_dir//\\//}"
+          echo "PACKAGE_DIR=$pkg_dir" >> "$GITHUB_ENV"
+
       - name: Upload tar
         if: github.event_name == 'release' && matrix.release-suffix != ''
         uses: softprops/action-gh-release@v1
         with:
-          files: ${{runner.workspace}}/main/build/${{env.RELEASE_FILE}}.tar.gz
+          files: ${{ env.PACKAGE_DIR }}/${{ env.RELEASE_FILE }}.tar.gz
 
       - name: Upload zip
         if: github.event_name == 'release' && matrix.release-suffix != ''
         uses: softprops/action-gh-release@v1
         with:
-          files: ${{runner.workspace}}/main/build/${{env.RELEASE_FILE}}.zip
+          files: ${{ env.PACKAGE_DIR }}/${{ env.RELEASE_FILE }}.zip
 
       - name: Rename HTML to index.html
         if: matrix.name == 'Emscripten' && github.ref == 'refs/heads/main'
