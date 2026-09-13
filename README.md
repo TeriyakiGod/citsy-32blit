@@ -6,6 +6,15 @@ This repository is generated from the [chili-chip/game-template](https://github.
 
 The player boots into a 128×128 retro launcher (game carousel, settings, pause overlay) designed for a Waveshare RP2350 Plus + 128×128 16-bit SPI OLED, using the chili-chip 32blit SDK.
 
+Documentation is in [`docs/`](docs/index.md) and published at [TeriyakiGod.github.io/citsy-32blit/docs](https://TeriyakiGod.github.io/citsy-32blit/docs/). Preview locally with:
+
+```bash
+pip install -r requirements-docs.txt
+mkdocs serve
+```
+
+`.github/workflows/docs.yml` builds MkDocs on pushes to `main` and deploys GitHub Pages under the `/docs` path.
+
 ## Requirements
 
 - CMake 3.20+
@@ -62,7 +71,7 @@ Author games at [bitsy.org](https://bitsy.org), export `.bitsy`, and drop the fi
 
 Pause overlay items: **Resume**, **Restart**, **Exit** (back to the launcher). MENU or B on the overlay resumes.
 
-Settings (volume and OLED/backlight brightness) are written to 32blit save slot 0 when you leave the screen. On RP2350, battery voltage is sampled from ADC3 (GPIO29, VSYS÷3 on Pico-class boards such as the Waveshare RP2350 Plus).
+Settings (volume and OLED/backlight brightness) are written to 32blit save slot 0 when you leave the screen. On RP2350, battery voltage is sampled from ADC0 (GPIO26) through a 1/3 divider.
 
 ## VGC Zero / device
 
@@ -87,7 +96,7 @@ See the [VGC notes in the 32blit SDK](https://github.com/chili-chip/32blit-sdk/b
 
 Optional compile definitions:
 
-- `CITSY_BATTERY_ADC_PIN` / `CITSY_BATTERY_ADC_CHANNEL` — override the battery sense pin (default GPIO29 / ADC3)
+- `CITSY_BATTERY_ADC_PIN` / `CITSY_BATTERY_ADC_CHANNEL` — override the battery sense pin (default GPIO26 / ADC0)
 - `CITSY_BACKLIGHT_PIN` — PWM brightness pin; if unset, brightness is a software veil (correct for SSD1351 OLED, which has no backlight)
 
 ## How it talks to citsy

@@ -1,0 +1,77 @@
+name: Deploy docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/**
+      - mkdocs.yml
+      - requirements-docs.txt
+      - .github/workflows/docs.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-docs.txt
+
+      - name: Install documentation dependencies
+        run: pip install -r requirements-docs.txt
+
+      - name: Build site
+        run: mkdocs build --strict
+
+      - name: Stage site under /docs
+        run: |
+          set -euo pipefail
+          mkdir -p public/docs
+          cp -a site/. public/docs/
+          python3 - << 'PY'
+          from pathlib import Path
+          Path("public/index.html").write_text(
+              "<!DOCTYPE html>\n"
+              "<html lang=\"en\">\n"
+              "<head>\n"
+              "  <meta charset=\"utf-8\">\n"
+              "  <meta http-equiv=\"refresh\" content=\"0; url=docs/\">\n"
+              "  <link rel=\"canonical\" href=\"docs/\">\n"
+              "  <title>Redirecting to documentation</title>\n"
+              "</head>\n"
+              "<body>\n"
+              "  <p>Redirecting to <a href=\"docs/\">citsy-32blit documentation</a>.</p>\n"
+              "</body>\n"
+              "</html>\n"
+          )
+          Path("public/.nojekyll").touch()
+          Path("public/docs/.nojekyll").touch()
+          PY
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

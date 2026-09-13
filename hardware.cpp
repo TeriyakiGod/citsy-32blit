@@ -16,17 +16,17 @@
 namespace {
 
 constexpr float kAdcVref = 3.3f;
-constexpr float kDivider = 3.0f;     // Pico-class VSYS/3 on GPIO29 / ADC3
+constexpr float kDivider = 3.0f;     // 1/3 resistor divider on GPIO26 / ADC0
 constexpr float kLipoEmpty = 3.2f;
 constexpr float kLipoFull = 4.2f;
 constexpr float kUsbVolts = 4.55f;
 
 #ifdef CITSY_PICO_HW
 #ifndef CITSY_BATTERY_ADC_PIN
-#define CITSY_BATTERY_ADC_PIN 29
+#define CITSY_BATTERY_ADC_PIN 26
 #endif
 #ifndef CITSY_BATTERY_ADC_CHANNEL
-#define CITSY_BATTERY_ADC_CHANNEL 3
+#define CITSY_BATTERY_ADC_CHANNEL 0
 #endif
 
 int backlight_pin() {
