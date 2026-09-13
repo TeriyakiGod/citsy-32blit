@@ -1,8 +1,15 @@
-name: Deploy docs
+name: Docs
 
+# Strict MkDocs check only. GitHub Pages is owned by build.yml:
+# the Emscripten game stays at / and this site is copied to /docs.
 on:
   push:
-    branches: [main]
+    paths:
+      - docs/**
+      - mkdocs.yml
+      - requirements-docs.txt
+      - .github/workflows/docs.yml
+  pull_request:
     paths:
       - docs/**
       - mkdocs.yml
@@ -12,12 +19,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: false
 
 jobs:
   build:
@@ -36,42 +37,3 @@ jobs:
 
       - name: Build site
         run: mkdocs build --strict
-
-      - name: Stage site under /docs
-        run: |
-          set -euo pipefail
-          mkdir -p public/docs
-          cp -a site/. public/docs/
-          python3 - << 'PY'
-          from pathlib import Path
-          Path("public/index.html").write_text(
-              "<!DOCTYPE html>\n"
-              "<html lang=\"en\">\n"
-              "<head>\n"
-              "  <meta charset=\"utf-8\">\n"
-              "  <meta http-equiv=\"refresh\" content=\"0; url=docs/\">\n"
-              "  <link rel=\"canonical\" href=\"docs/\">\n"
-              "  <title>Redirecting to documentation</title>\n"
-              "</head>\n"
-              "<body>\n"
-              "  <p>Redirecting to <a href=\"docs/\">citsy-32blit documentation</a>.</p>\n"
-              "</body>\n"
-              "</html>\n"
-          )
-          Path("public/.nojekyll").touch()
-          Path("public/docs/.nojekyll").touch()
-          PY
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: public
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4

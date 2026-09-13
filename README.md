@@ -6,14 +6,14 @@ This repository is generated from the [chili-chip/game-template](https://github.
 
 The player boots into a 128×128 retro launcher (game carousel, settings, pause overlay) designed for a Waveshare RP2350 Plus + 128×128 16-bit SPI OLED, using the chili-chip 32blit SDK.
 
-Documentation is in [`docs/`](docs/index.md) and published at [TeriyakiGod.github.io/citsy-32blit/docs](https://TeriyakiGod.github.io/citsy-32blit/docs/). Preview locally with:
+Documentation is in [`docs/`](docs/index.md) and published next to the web player at [TeriyakiGod.github.io/citsy-32blit/docs](https://TeriyakiGod.github.io/citsy-32blit/docs/). The Emscripten game stays at the Pages root; MkDocs is nested under `/docs` by `.github/workflows/build.yml`.
+
+Preview locally with:
 
 ```bash
 pip install -r requirements-docs.txt
 mkdocs serve
 ```
-
-`.github/workflows/docs.yml` builds MkDocs on pushes to `main` and deploys GitHub Pages under the `/docs` path.
 
 ## Requirements
 
