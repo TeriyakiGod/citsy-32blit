@@ -26,7 +26,8 @@ void CitsyBlitHost::poll_input() {
     keys_[static_cast<int>(citsy::Button::Left)]  = blit::buttons & Button::DPAD_LEFT;
     keys_[static_cast<int>(citsy::Button::Right)] = blit::buttons & Button::DPAD_RIGHT;
     keys_[static_cast<int>(citsy::Button::Ok)]    = blit::buttons & (Button::A | Button::B);
-    keys_[static_cast<int>(citsy::Button::Menu)]  = blit::buttons & Button::MENU;
+    // MENU is the system overlay key unless the launcher explicitly releases it.
+    keys_[static_cast<int>(citsy::Button::Menu)]  = !menu_captured_ && (blit::buttons & Button::MENU);
 }
 
 void CitsyBlitHost::set_delta(double dt_ms) {
@@ -152,4 +153,11 @@ void CitsyBlitHost::apply_channel(int index, const citsy::SoundChannel& ch) {
 void CitsyBlitHost::play_audio() {
     apply_channel(0, sound1_);
     apply_channel(1, sound2_);
+}
+
+void CitsyBlitHost::stop_audio() {
+    blit::channels[0].off();
+    blit::channels[1].off();
+    sound1_was_active_ = false;
+    sound2_was_active_ = false;
 }

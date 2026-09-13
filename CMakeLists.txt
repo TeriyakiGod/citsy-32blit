@@ -2,7 +2,12 @@ cmake_minimum_required(VERSION 3.20)
 
 project(citsy-32blit LANGUAGES C CXX ASM)
 
-set(PROJECT_SOURCE game.cpp game.hpp host.cpp host.hpp)
+set(PROJECT_SOURCE
+  game.cpp game.hpp
+  host.cpp host.hpp
+  launcher.cpp launcher.hpp
+  hardware.cpp hardware.hpp
+)
 set(PROJECT_DISTRIBS LICENSE README.md)
 
 if(MSVC)
@@ -60,6 +65,11 @@ set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_EXTENSIONS OFF)
 
 target_link_libraries(${PROJECT_NAME} citsy)
+
+# Battery ADC / backlight PWM on RP2350 targets (no-ops on desktop).
+if(32BLIT_PICO)
+  target_link_libraries(${PROJECT_NAME} hardware_adc hardware_pwm)
+endif()
 
 if(NOT MSVC)
   # Pico's pico_cxx_options INTERFACE -fno-exceptions can still win on the

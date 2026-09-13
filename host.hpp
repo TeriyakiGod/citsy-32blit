@@ -17,6 +17,8 @@ public:
 
     void draw() const;
     void play_audio();
+    void stop_audio();
+    void set_menu_captured(bool captured) { menu_captured_ = captured; }
 
     [[nodiscard]] double delta_time_ms() const override;
     [[nodiscard]] bool button(citsy::Button code) const override;
@@ -40,6 +42,7 @@ private:
     double dt_ms_ = 16.667;
     bool keys_[6] = {};
     bool has_frame_ = false;
+    bool menu_captured_ = true;
 
     std::array<std::uint8_t, citsy::kVideoSize * citsy::kVideoSize> video_{};
     blit::Pen pens_[256]{};

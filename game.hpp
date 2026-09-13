@@ -1,13 +1,7 @@
 #pragma once
 
-#include "32blit.hpp"
-#include "host.hpp"
-
-#include <citsy/engine.hpp>
-
-#include <optional>
+#include <cstdint>
 #include <string>
-#include <vector>
 
 struct GameEntry {
     std::string path;
@@ -15,8 +9,10 @@ struct GameEntry {
     bool bundled = false;
 };
 
-enum class AppMode {
-    Picker,
-    Playing,
+enum class SystemState : uint8_t {
+    MainMenu,
+    Settings,
+    GameRunning,
+    PauseOverlay,
     Error,
 };
