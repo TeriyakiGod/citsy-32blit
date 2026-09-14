@@ -77,6 +77,13 @@ if(NOT MSVC)
   target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fexceptions>)
 endif()
 
+# Device Release builds: -O3. The old vgc preset compiled CMAKE_BUILD_TYPE=Debug
+# (-Og), which left the interpreter and the palette expand in the noise.
+if(32BLIT_PICO)
+  target_compile_options(citsy PRIVATE $<$<NOT:$<CONFIG:Debug>>:-O3>)
+  target_compile_options(${PROJECT_NAME} PRIVATE $<$<NOT:$<CONFIG:Debug>>:-O3>)
+endif()
+
 if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
   target_compile_options(${PROJECT_NAME} PRIVATE -sDISABLE_EXCEPTION_CATCHING=0)
   target_link_options(${PROJECT_NAME} PRIVATE -fexceptions -sDISABLE_EXCEPTION_CATCHING=0)

@@ -13,6 +13,23 @@
                 "PICO_PLATFORM": "rp2350-arm-s",
                 "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/../32blit-sdk/pico2.toolchain",
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_ASM_COMPILER": "/usr/bin/arm-none-eabi-gcc",
+                "PICO_CXX_ENABLE_EXCEPTIONS": "ON"
+            }
+        },
+        {
+            "name": "vgc-debug",
+            "displayName": "vgc-debug",
+            "description": "VGC device build with debug symbols (-Og)",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "32BLIT_DIR": "${sourceDir}/../32blit-sdk",
+                "PICO_SDK_PATH": "${sourceDir}/../pico-sdk",
+                "PICO_BOARD": "chilichip_vgc",
+                "PICO_PLATFORM": "rp2350-arm-s",
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/../32blit-sdk/pico2.toolchain",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_ASM_COMPILER": "/usr/bin/arm-none-eabi-gcc",
                 "PICO_CXX_ENABLE_EXCEPTIONS": "ON"
@@ -40,6 +57,10 @@
         {
             "name": "vgc",
             "configurePreset": "vgc"
+        },
+        {
+            "name": "vgc-debug",
+            "configurePreset": "vgc-debug"
         }
     ]
 }
