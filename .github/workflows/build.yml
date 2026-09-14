@@ -21,6 +21,7 @@ jobs:
 
     name: ${{matrix.name}}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-22.04
@@ -29,11 +30,14 @@ jobs:
             cmake-args: -D32BLIT_DIR=$GITHUB_WORKSPACE/32blit-sdk -DCITSY_DIR=$GITHUB_WORKSPACE/citsy
             apt-packages: libsdl2-dev libsdl2-image-dev libsdl2-net-dev python3-setuptools
 
-          - os: ubuntu-22.04
+          # ubuntu-24.04 ships gcc-arm-none-eabi 13, which can compile citsy's
+          # C++20 IdMap (heterogeneous unordered_map lookup). 22.04 is GCC 10.3.
+          - os: ubuntu-24.04
             name: STM32
             release-suffix: STM32
             cmake-args: -DCMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/32blit-sdk/32blit.toolchain -DCITSY_DIR=$GITHUB_WORKSPACE/citsy
-            apt-packages: gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib python3-setuptools
+            apt-packages: gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib python3-setuptools pipx
+            use-pipx: true
 
           - os: ubuntu-22.04
             name: Emscripten
@@ -42,11 +46,12 @@ jobs:
             cmake-prefix: emcmake
             apt-packages: python3-setuptools
 
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             name: VGC
             release-suffix: VGC
             cmake-args: -D32BLIT_DIR=$GITHUB_WORKSPACE/32blit-sdk -DCITSY_DIR=$GITHUB_WORKSPACE/citsy -DPICO_SDK_PATH=$GITHUB_WORKSPACE/pico-sdk -DPICO_BOARD=chilichip_vgc -DPICO_PLATFORM=rp2350-arm-s -DCMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/32blit-sdk/pico2.toolchain
-            apt-packages: gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib python3-setuptools
+            apt-packages: gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib python3-setuptools pipx
+            use-pipx: true
 
           - os: macos-latest
             name: macOS
@@ -66,25 +71,25 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: main
 
       - name: Checkout 32Blit API
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: chili-chip/32blit-sdk
           path: 32blit-sdk
 
       - name: Checkout citsy
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: TeriyakiGod/citsy
           path: citsy
 
       - name: Checkout Pico SDK
         if: matrix.name == 'VGC'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: chili-chip/pico-sdk
           path: pico-sdk
@@ -92,7 +97,7 @@ jobs:
 
       - name: Checkout Pico Extras
         if: matrix.name == 'VGC'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: chili-chip/pico-extras
           path: pico-extras
@@ -101,7 +106,12 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt update && sudo apt install ${{matrix.apt-packages}}
-          pip3 install 32blit
+          if [ "${{matrix.use-pipx}}" = "true" ]; then
+            pipx install 32blit
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          else
+            pip3 install 32blit
+          fi
 
       - name: Install macOS deps
         if: runner.os == 'macOS'
@@ -203,7 +213,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download Emscripten build artifact
         uses: actions/download-artifact@v4
