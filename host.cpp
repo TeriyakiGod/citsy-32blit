@@ -248,8 +248,10 @@ void CitsyBlitHost::apply_channel(int index, const citsy::SoundChannel& ch) {
     out.decay_ms = 1;
     out.sustain = 0xffff;
     out.release_ms = 2;
+    out.filter_enable = false;
 
-    if (!was_active || out.adsr_phase == blit::ADSRPhase::OFF) {
+    if (!was_active || out.adsr_phase == blit::ADSRPhase::OFF
+        || out.adsr_phase == blit::ADSRPhase::RELEASE) {
         out.trigger_sustain();
     }
     was_active = true;

@@ -289,6 +289,23 @@ void update_main_menu(uint32_t time) {
     }
 }
 
+void play_volume_chirp() {
+    if (g_hw.volume() <= 0) {
+        channels[0].off();
+        return;
+    }
+    auto& ch = channels[0];
+    ch.waveforms = Waveform::SQUARE;
+    ch.frequency = 880;
+    ch.volume = 0xffff;
+    ch.pulse_width = 0x7fff;
+    ch.attack_ms = 8;
+    ch.decay_ms = 40;
+    ch.sustain = 0;
+    ch.release_ms = 1;
+    ch.trigger_attack();
+}
+
 void update_settings(uint32_t time) {
     if (g_repeat_up.tick(buttons & Button::DPAD_UP, time)) {
         g_settings_row = (g_settings_row + 1) % 2;
@@ -302,6 +319,7 @@ void update_settings(uint32_t time) {
     auto nudge = [&](int dir) {
         if (g_settings_row == 0) {
             g_hw.set_volume(g_hw.volume() + dir);
+            play_volume_chirp();
         } else {
             g_hw.set_brightness(g_hw.brightness() + dir);
         }
