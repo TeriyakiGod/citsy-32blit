@@ -45,6 +45,7 @@ private:
     bool menu_captured_ = true;
 
     std::array<std::uint8_t, citsy::kVideoSize * citsy::kVideoSize> video_{};
+    std::array<std::uint16_t, 256> lut565_{};
     blit::Pen pens_[256]{};
     int palette_len_ = 3;
 

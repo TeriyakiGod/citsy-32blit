@@ -1,8 +1,16 @@
 #include "host.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <string>
+
+#if defined(PICO_ON_DEVICE) && PICO_ON_DEVICE
+#include "pico.h"
+#define CITSY_NOT_IN_FLASH __not_in_flash_func
+#else
+#define CITSY_NOT_IN_FLASH
+#endif
 
 namespace {
 
@@ -14,6 +22,65 @@ constexpr int kVideo = citsy::kVideoSize;
         case citsy::PulseWave::Quarter: return 0x3fff;
         case citsy::PulseWave::Half:
         default:                        return 0x7fff;
+    }
+}
+
+// Match 32blit `pack_rgb565` (R in the low bits, B in the high bits).
+[[nodiscard]] constexpr uint16_t pack_rgb565(uint8_t r, uint8_t g, uint8_t b) {
+    return static_cast<uint16_t>((r >> 3) | ((g >> 2) << 5) | ((b >> 3) << 11));
+}
+
+void CITSY_NOT_IN_FLASH(blit_indices_rgb565)(
+    const uint8_t* src,
+    uint16_t* dest,
+    const uint16_t* lut,
+    int count
+) {
+    int i = 0;
+    // Unroll a little so the Cortex-M33 can dual-issue the LUT loads.
+    for (; i + 4 <= count; i += 4) {
+        dest[i]     = lut[src[i]];
+        dest[i + 1] = lut[src[i + 1]];
+        dest[i + 2] = lut[src[i + 2]];
+        dest[i + 3] = lut[src[i + 3]];
+    }
+    for (; i < count; ++i) {
+        dest[i] = lut[src[i]];
+    }
+}
+
+void overlay_textbox(
+    std::array<std::uint8_t, kVideo * kVideo>& video,
+    const citsy::TextboxView& textbox
+) {
+    if (!textbox.visible || textbox.pixels.empty() ||
+        textbox.width <= 0 || textbox.height <= 0) {
+        return;
+    }
+    const int tw = textbox.width;
+    const int th = textbox.height;
+    const int x0 = std::max(0, textbox.x);
+    const int y0 = std::max(0, textbox.y);
+    const int x1 = std::min(kVideo, textbox.x + tw);
+    const int y1 = std::min(kVideo, textbox.y + th);
+    const int copy_w = x1 - x0;
+    if (copy_w <= 0 || y1 <= y0) return;
+
+    const int src_x = x0 - textbox.x;
+    const int src_y = y0 - textbox.y;
+    const auto* src_base = textbox.pixels.data();
+    const std::size_t src_n = textbox.pixels.size();
+
+    for (int row = 0; row < y1 - y0; ++row) {
+        const std::size_t si =
+            static_cast<std::size_t>((src_y + row) * tw + src_x);
+        if (si >= src_n) break;
+        const std::size_t n = std::min(
+            static_cast<std::size_t>(copy_w), src_n - si);
+        std::memcpy(
+            &video[static_cast<std::size_t>((y0 + row) * kVideo + x0)],
+            src_base + si,
+            n);
     }
 }
 
@@ -68,30 +135,17 @@ void CitsyBlitHost::present(
         std::memset(video_.data() + n, 0, video_.size() - n);
     }
 
+    overlay_textbox(video_, textbox);
+
+    lut565_.fill(0);
     palette_len_ = static_cast<int>(std::min(palette.size(), size_t{256}));
-    for (int i = 0; i < 256; ++i) {
-        pens_[i] = blit::Pen(0, 0, 0);
-    }
     for (int i = 0; i < palette_len_; ++i) {
         const auto& c = palette[static_cast<size_t>(i)];
         pens_[i] = blit::Pen(c.r, c.g, c.b);
+        lut565_[static_cast<size_t>(i)] = pack_rgb565(c.r, c.g, c.b);
     }
-
-    if (textbox.visible && !textbox.pixels.empty() &&
-        textbox.width > 0 && textbox.height > 0) {
-        const int tw = textbox.width;
-        const int th = textbox.height;
-        for (int row = 0; row < th; ++row) {
-            const int dy = textbox.y + row;
-            if (dy < 0 || dy >= kVideo) continue;
-            for (int col = 0; col < tw; ++col) {
-                const int dx = textbox.x + col;
-                if (dx < 0 || dx >= kVideo) continue;
-                const size_t si = static_cast<size_t>(row * tw + col);
-                if (si >= textbox.pixels.size()) continue;
-                video_[static_cast<size_t>(dy * kVideo + dx)] = textbox.pixels[si];
-            }
-        }
+    for (int i = palette_len_; i < 256; ++i) {
+        pens_[i] = blit::Pen(0, 0, 0);
     }
 
     sound1_ = sound1;
@@ -100,9 +154,60 @@ void CitsyBlitHost::present(
 }
 
 void CitsyBlitHost::draw() const {
+    if (!has_frame_) {
+        blit::screen.pen = pens_[0];
+        blit::screen.clear();
+        return;
+    }
+
+    const int sw = static_cast<int>(blit::screen.bounds.w);
+    const int sh = static_cast<int>(blit::screen.bounds.h);
+
+    // Device OLED: 128×128 RGB565. Expand palette indices in one pass into
+    // the DMA framebuffer. stretch_blit() would call get_pixel+pbf per pixel
+    // (function pointer + Pen reconstruct + RGB565 pack) — ~10–20× slower.
+    if (blit::screen.format == blit::PixelFormat::RGB565 &&
+        blit::screen.data != nullptr &&
+        sw >= kVideo && sh >= kVideo) {
+        const int scale = std::max(1, std::min(sw / kVideo, sh / kVideo));
+        auto* dest = reinterpret_cast<uint16_t*>(blit::screen.data);
+
+        if (scale == 1 && sw == kVideo && sh == kVideo) {
+            blit_indices_rgb565(video_.data(), dest, lut565_.data(), kVideo * kVideo);
+            return;
+        }
+
+        const int dw = kVideo * scale;
+        const int dh = kVideo * scale;
+        const int dx = (sw - dw) / 2;
+        const int dy = (sh - dh) / 2;
+
+        if (dx != 0 || dy != 0 || dw != sw || dh != sh) {
+            blit::screen.pen = blit::Pen(0, 0, 0);
+            blit::screen.clear();
+        }
+
+        for (int y = 0; y < kVideo; ++y) {
+            const uint8_t* src = video_.data() + y * kVideo;
+            for (int sy = 0; sy < scale; ++sy) {
+                uint16_t* row = dest + (dy + y * scale + sy) * sw + dx;
+                if (scale == 1) {
+                    blit_indices_rgb565(src, row, lut565_.data(), kVideo);
+                } else {
+                    for (int x = 0; x < kVideo; ++x) {
+                        const uint16_t p = lut565_[src[x]];
+                        for (int sx = 0; sx < scale; ++sx) {
+                            *row++ = p;
+                        }
+                    }
+                }
+            }
+        }
+        return;
+    }
+
     blit::screen.pen = pens_[0];
     blit::screen.clear();
-    if (!has_frame_) return;
 
     auto* pixels = const_cast<uint8_t*>(video_.data());
     blit::Surface src(pixels, blit::PixelFormat::P, blit::Size(kVideo, kVideo));
