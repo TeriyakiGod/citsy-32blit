@@ -10,8 +10,10 @@
 #include "hardware/gpio.h"
 #include "hardware/pwm.h"
 #include "config.h"
-#include "ssd1351_tune.hpp"
 #define CITSY_PICO_HW 1
+// chili-chip dbi_ssd1351.cpp. Weak so this player still links against an
+// SDK that does not yet export the symbol.
+void ssd1351_set_master_contrast(uint8_t level) __attribute__((weak));
 #endif
 
 namespace {
@@ -157,7 +159,12 @@ void HardwareStatus::apply_volume() const {
 
 bool HardwareStatus::needs_software_veil() const {
 #ifdef CITSY_PICO_HW
-    return false;
+    if (backlight_pin() >= 0) {
+        return false;
+    }
+    // OLED contrast lives in the chili-chip HAL. Until that symbol is
+    // linked, keep the desktop-style veil so Bright still does something.
+    return ssd1351_set_master_contrast == nullptr;
 #else
     return true;
 #endif
@@ -174,7 +181,9 @@ void HardwareStatus::apply_brightness() const {
         return;
     }
 
-    // SSD1351 has no backlight. Map 0–10 steps onto command 0xC7 (0–15).
+    if (ssd1351_set_master_contrast == nullptr) {
+        return;
+    }
     const int steps = std::max(1, brightness_);
     const uint8_t contrast = static_cast<uint8_t>(
         std::max(1, (steps * 15) / kSteps));

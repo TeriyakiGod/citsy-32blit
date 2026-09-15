@@ -67,25 +67,8 @@ set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_EXTENSIONS OFF)
 target_link_libraries(${PROJECT_NAME} citsy)
 
 # Battery ADC / backlight PWM on RP2350 targets (no-ops on desktop).
-# BlitHalPico is created inside blit_executable(), so the SSD1351 source
-# swap has to happen here — not immediately after find_package(32BLIT).
 if(32BLIT_PICO)
   target_link_libraries(${PROJECT_NAME} hardware_adc hardware_pwm)
-  target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/display")
-  if(TARGET BlitHalPico)
-    get_target_property(_citsy_hal_srcs BlitHalPico INTERFACE_SOURCES)
-    if(_citsy_hal_srcs)
-      list(FILTER _citsy_hal_srcs EXCLUDE REGEX "dbi_ssd1351\\.cpp$")
-      list(APPEND _citsy_hal_srcs "${CMAKE_CURRENT_SOURCE_DIR}/display/dbi_ssd1351.cpp")
-      set_property(TARGET BlitHalPico PROPERTY INTERFACE_SOURCES ${_citsy_hal_srcs})
-      message(STATUS "Using patched SSD1351 driver: display/dbi_ssd1351.cpp")
-    else()
-      message(FATAL_ERROR "BlitHalPico has no INTERFACE_SOURCES; cannot patch SSD1351 driver")
-    endif()
-    target_include_directories(BlitHalPico INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/display")
-  else()
-    message(FATAL_ERROR "32BLIT_PICO is set but BlitHalPico was not created")
-  endif()
 endif()
 
 if(NOT MSVC)
@@ -129,19 +112,6 @@ endif()
 blit_assets_yaml(${PROJECT_NAME} assets.yml)
 blit_metadata(${PROJECT_NAME} metadata.yml)
 add_custom_target(flash DEPENDS ${PROJECT_NAME}.flash)
-
-# Host-side check of the SSD1351 init table (CLOCK_DIV, enhance, LUT).
-if(NOT 32BLIT_PICO AND NOT 32BLIT_HW AND NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-  add_executable(ssd1351_init_seq_test tests/ssd1351_init_seq_test.cpp)
-  target_include_directories(ssd1351_init_seq_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-  set_property(TARGET ssd1351_init_seq_test PROPERTY CXX_STANDARD 20)
-  add_dependencies(${PROJECT_NAME} ssd1351_init_seq_test)
-  add_custom_command(
-    TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ssd1351_init_seq_test
-    COMMENT "Verify SSD1351 init sequence"
-  )
-endif()
 
 install(FILES ${PROJECT_DISTRIBS} DESTINATION .)
 set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)

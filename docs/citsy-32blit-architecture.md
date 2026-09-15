@@ -172,6 +172,5 @@ On desktop, `LauncherUI::origin()` centres the 128×128 canvas in the 320×240 w
 | `game.cpp` / `game.hpp` | `SystemState`, game scan, `init` / `update` / `render` |
 | `launcher.cpp` / `launcher.hpp` | Status bar, list, sliders, pause panel, veil |
 | `hardware.cpp` / `hardware.hpp` | ADC, PWM / SSD1351 contrast, `blit::volume`, save slot 0 |
-| `display/dbi_ssd1351.cpp` | Patched OLED HAL (init, DMA burst, contrast) |
 | `host.cpp` / `host.hpp` | `citsy::Host` — input, `present`, blit, square-wave channels |
 | `assets.yml` | Bundled `.bitsy` + splash/icon |
