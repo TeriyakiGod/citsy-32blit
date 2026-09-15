@@ -431,7 +431,9 @@ void render(uint32_t time) {
             break;
     }
 
-    g_ui.draw_brightness_veil(g_hw.brightness());
+    if (g_hw.needs_software_veil()) {
+        g_ui.draw_brightness_veil(g_hw.brightness());
+    }
 }
 
 void update(uint32_t time) {

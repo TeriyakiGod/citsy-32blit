@@ -11,6 +11,9 @@
 #include "hardware/pwm.h"
 #include "config.h"
 #define CITSY_PICO_HW 1
+// chili-chip dbi_ssd1351.cpp. Weak so this player still links against an
+// SDK that does not yet export the symbol.
+void ssd1351_set_master_contrast(uint8_t level) __attribute__((weak));
 #endif
 
 namespace {
@@ -154,15 +157,37 @@ void HardwareStatus::apply_volume() const {
     blit::volume = static_cast<uint16_t>((0xffffu * static_cast<uint32_t>(steps)) / kSteps);
 }
 
+bool HardwareStatus::needs_software_veil() const {
+#ifdef CITSY_PICO_HW
+    if (backlight_pin() >= 0) {
+        return false;
+    }
+    // OLED contrast lives in the chili-chip HAL. Until that symbol is
+    // linked, keep the desktop-style veil so Bright still does something.
+    return ssd1351_set_master_contrast == nullptr;
+#else
+    return true;
+#endif
+}
+
 void HardwareStatus::apply_brightness() const {
 #ifdef CITSY_PICO_HW
     const int pin = backlight_pin();
-    if (pin < 0) return;
+    if (pin >= 0) {
+        const float n = static_cast<float>(std::max(1, brightness_)) / static_cast<float>(kSteps);
+        const float gamma = 2.8f;
+        const uint16_t pwm = static_cast<uint16_t>(std::pow(n, gamma) * 65535.0f + 0.5f);
+        pwm_set_gpio_level(static_cast<uint>(pin), pwm);
+        return;
+    }
 
-    const float n = static_cast<float>(std::max(1, brightness_)) / static_cast<float>(kSteps);
-    const float gamma = 2.8f;
-    const uint16_t pwm = static_cast<uint16_t>(std::pow(n, gamma) * 65535.0f + 0.5f);
-    pwm_set_gpio_level(static_cast<uint>(pin), pwm);
+    if (ssd1351_set_master_contrast == nullptr) {
+        return;
+    }
+    const int steps = std::max(1, brightness_);
+    const uint8_t contrast = static_cast<uint8_t>(
+        std::max(1, (steps * 15) / kSteps));
+    ssd1351_set_master_contrast(contrast);
 #else
     (void)brightness_;
 #endif

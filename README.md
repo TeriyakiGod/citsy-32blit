@@ -97,7 +97,7 @@ See the [VGC notes in the 32blit SDK](https://github.com/chili-chip/32blit-sdk/b
 Optional compile definitions:
 
 - `CITSY_BATTERY_ADC_PIN` / `CITSY_BATTERY_ADC_CHANNEL` — override the battery sense pin (default GPIO26 / ADC0)
-- `CITSY_BACKLIGHT_PIN` — PWM brightness pin; if unset, brightness is a software veil (correct for SSD1351 OLED, which has no backlight)
+- `CITSY_BACKLIGHT_PIN` — PWM brightness pin; if unset, device brightness is SSD1351 `CONTRAST_MASTER` (OLED has no backlight). Desktop still uses a software veil.
 
 ## How it talks to citsy
 
