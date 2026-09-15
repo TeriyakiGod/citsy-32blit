@@ -142,7 +142,9 @@ jobs:
 
       - name: Pre-build Emscripten ports
         if: matrix.name == 'Emscripten'
-        run: embuilder.py build sdl2 sdl2-image-jpg sdl2-net
+        # Emscripten 6.x renamed hyphenated 2.0.x targets (sdl2-image-jpg,
+        # sdl2-net) to underscore port names plus format variants.
+        run: embuilder.py build sdl2 sdl2_image-jpg sdl2_net
 
       - name: Create Build Environment
         run: cmake -E make_directory ${{runner.workspace}}/main/build
