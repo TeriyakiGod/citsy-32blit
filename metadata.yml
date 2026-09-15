@@ -5,6 +5,6 @@ splash:
   file: assets/no-image.png
 icon:
   file: assets/no-icon.png
-version: v0.1.0
+version: v0.1.3
 category: game
 url: https://github.com/TeriyakiGod/citsy-32blit
