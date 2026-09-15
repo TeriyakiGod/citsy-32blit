@@ -23,20 +23,43 @@ Board pins (`32blit-sdk/32blit-pico/board/chilichip_vgc/config.h`):
 | `LCD_DC_PIN` | 21 | Data / command |
 | `LCD_RESET_PIN` | 20 | Panel reset |
 | Resolution | 128×128 | `DISPLAY_WIDTH` / `DISPLAY_HEIGHT` |
-| SPI clock cap | 30 MHz | `LCD_MAX_CLOCK` |
+| SPI clock cap | **20 MHz** | `LCD_MAX_CLOCK` (datasheet serial-write cycle 50 ns; do not 30–40 MHz) |
 | Rotation | 2 | `LCD_ROTATION` (180°) |
 
 There is **no** dedicated backlight pin on this OLED. `LCD_BACKLIGHT_PIN` is left undefined in the board header (the SDK default of GPIO 20 would collide with reset, so the player refuses to PWM that pin).
 
 ### SPI timing and transfer
 
-`dbi_ssd1351.cpp` bit-bangs the SSD1351 protocol through a PIO SPI program:
+This repository **replaces** chili-chip `dbi_ssd1351.cpp` at CMake configure time (`display/dbi_ssd1351.cpp`) so the VGC firmware does not wait on an SDK bump.
+
+PIO SPI program (`dbi-spi.pio`):
 
 1. **Command vs data** — `LCD_DC_PIN` is low for command bytes (`SET_COLUMN` `0x15`, `SET_ROW` `0x75`, `WRITE_RAM` `0x5C`, …) and high for pixel payload.
-2. **Clock** — PIO clock divider is chosen so SCK stays at or below `LCD_MAX_CLOCK` (30 MHz) given the RP2350 system clock.
-3. **Frame push** — after `render()`, the 128×128 RGB565 framebuffer is DMA’d into the PIO TX FIFO as 16-bit words (`DISPLAY_WIDTH * DISPLAY_HEIGHT` transfers). CS stays asserted for the burst.
+2. **Clock** — fractional PIO divider so SCK is `clk_sys / (clkdiv × 2)` and equals `LCD_MAX_CLOCK` (**20 MHz**, SSD1351 serial-write minimum cycle 50 ns). Integer `ceil()` in the stock HAL dropped this to ~17.9 MHz at 250 MHz sysclk. **Do not** raise the cap to 30–40 MHz: that overclocks the panel and shows up as sparkle, not less flicker.
+3. **Frame push** — after `render()`, the 128×128 RGB565 page is DMA’d as 16-bit words (`128 × 128` transfers, CS held). The patched driver re-issues column/row + `WRITE_RAM` every frame and waits for PIO TX stall so the GRAM pointer cannot drift (a one-pixel slip scrolls as horizontal lines travelling down the screen).
+4. **Double buffer** — RP2350 `DOUBLE_BUFFERED_HIRES` allocates two 32 KiB pages. Game code draws the back buffer while the previous page is on the wire.
+5. **TE / VSYNC** — SSD1351 modules (Waveshare 1.5") do not break out a tearing pin. If a later board wires `LCD_TE_PIN` or `LCD_VSYNC_PIN`, the driver waits on the rising edge before DMA, same as the ST7789 HAL.
+
+A 128×128 RGB565 frame is 32 768 bytes ≈ **13.1 ms** at 20 MHz, so the bus is not the 50 FPS cap (`update_display` still ticks at 20 ms without TE).
 
 The player never issues these commands itself. It writes `blit::screen`; the HAL presents that buffer during `update_display()`.
+
+### Flicker, tearing, and rolling lines
+
+Phone cameras and some viewers see **horizontal bars rolling on black** because the SSD1351 multiplexes rows with PWM. That is not SPI noise.
+
+| Bottleneck | Stock chili-chip HAL | Patch |
+|---|---|---|
+| `0xB3` CLOCK_DIV | `0xF1` (max osc, **÷2**) | `0xF0` (max osc, **÷1**) — ~2× panel refresh, PWM above typical flicker fusion. Override with `-DSSD1351_CLOCK_DIV=0xF1` if a panel cannot tolerate /1 |
+| Init gaps | no `0xB2` enhance, `0xBB` precharge voltage, `0xB9` linear LUT | CircuitPython/Newhaven values |
+| SPI clkdiv | `ceil(sys / 2f)` | fractional, hits 20 MHz |
+| GRAM pointer | left in `WRITE_RAM` across frames | window + `0x5C` every flip |
+| Brightness | software black veil (pixels still PWM at full contrast) | command `0xC7` master contrast on device |
+
+A phone at 30/60 fps will still beat against OLED PWM; that remaining roll is the camera shutter, not GRAM tearing. Eye strain when the handheld is moved is the ÷2 refresh.
+
+!!! warning "No TE pin on this panel"
+    Solomon SSD1351 does not expose a MIPI TE output on the Waveshare 7-pin module (VCC, GND, DIN, CLK, CS, DC, RST). Tear-free scan sync needs a board change. Until then: full-frame DMA faster than one multiplex period, plus double buffering so the CPU never mutates the page on the wire.
 
 ### Framebuffer mapping
 
@@ -129,9 +152,11 @@ If `CITSY_BACKLIGHT_PIN` is defined, or `LCD_BACKLIGHT_PIN` is defined and is **
 
 `pwm_set_gpio_level()` writes the compare value. Step 0 still uses a floor of 1 so the panel never blanks hard.
 
-### Software veil (SSD1351 OLED)
+### Software veil (desktop) vs contrast (SSD1351 OLED)
 
-The chili-chip 1.5" RGB OLED has **no PWM backlight**. Brightness is a translucent black rectangle over the 128×128 canvas:
+The chili-chip 1.5" RGB OLED has **no PWM backlight**. On **device**, the settings slider writes SSD1351 `CONTRAST_MASTER` (`0xC7`, 0–15) through `ssd1351_set_master_contrast()`. A software black veil would still PWM every pixel at full analog contrast and is skipped on Pico builds.
+
+Desktop SDL has no OLED register, so the launcher still draws a translucent black rectangle:
 
 ```cpp
 dim = ((10 - steps) * 180) / 10;   // 0 at full, 180 at minimum
@@ -139,10 +164,7 @@ screen.pen = Pen(0, 0, 0, dim);
 screen.rectangle(canvas());
 ```
 
-`RGBA_RGB565` blending in 32blit makes this work on the device framebuffer. The same veil runs on desktop so the slider is testable without hardware.
-
-!!! warning "SSD1351 contrast registers"
-    The panel also has `CONTRAST_MASTER` (`0xC7`) and `CONTRAST_ABC` (`0xC1`). Those commands are issued only inside the HAL init sequence; the player does not poke SPI from game code. Use `CITSY_BACKLIGHT_PIN` if you wire a real backlight, otherwise the veil is the supported path.
+`CITSY_BACKLIGHT_PIN` (or a non-reset `LCD_BACKLIGHT_PIN`) still uses GPIO PWM for TFT panels.
 
 ## Audio control
 

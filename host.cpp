@@ -164,7 +164,9 @@ void CitsyBlitHost::draw() const {
     const int sh = static_cast<int>(blit::screen.bounds.h);
 
     // Device OLED: 128×128 RGB565. Expand palette indices in one pass into
-    // the DMA framebuffer. stretch_blit() would call get_pixel+pbf per pixel
+    // the HAL's off-screen RGB565 framebuffer (double-buffered on RP2350).
+    // The SSD1351 driver DMA's that whole page in one WRITE_RAM burst.
+    // stretch_blit() would call get_pixel+pbf per pixel
     // (function pointer + Pen reconstruct + RGB565 pack) — ~10–20× slower.
     if (blit::screen.format == blit::PixelFormat::RGB565 &&
         blit::screen.data != nullptr &&

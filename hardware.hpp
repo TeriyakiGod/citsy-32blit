@@ -5,8 +5,8 @@
 /// Persistent launcher preferences and RP2350 telemetry.
 ///
 /// Volume is applied through `blit::volume`. Brightness uses GPIO PWM when a
-/// dedicated backlight pin is available, and a software veil otherwise (OLED
-/// panels such as the 128×128 SSD1351 have no PWM backlight).
+/// dedicated backlight pin is available, SSD1351 master contrast on the OLED,
+/// and a software veil on desktop SDL (no panel registers).
 class HardwareStatus {
 public:
     static constexpr int kSteps = 10;
@@ -29,6 +29,11 @@ public:
     [[nodiscard]] float battery_volts() const { return battery_volts_; }
     [[nodiscard]] bool on_usb() const { return on_usb_; }
     [[nodiscard]] bool battery_known() const { return battery_known_; }
+
+    /// Desktop SDL has no OLED contrast register, so the launcher draws a
+    /// translucent black veil. On device, brightness is PWM (TFT) or SSD1351
+    /// master contrast (OLED) and the veil would only reintroduce PWM flicker.
+    [[nodiscard]] bool needs_software_veil() const;
 
 private:
     static constexpr uint32_t kMagic = 0x43535431; // 'CST1'

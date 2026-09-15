@@ -10,6 +10,7 @@
 #include "hardware/gpio.h"
 #include "hardware/pwm.h"
 #include "config.h"
+#include "ssd1351_tune.hpp"
 #define CITSY_PICO_HW 1
 #endif
 
@@ -154,15 +155,30 @@ void HardwareStatus::apply_volume() const {
     blit::volume = static_cast<uint16_t>((0xffffu * static_cast<uint32_t>(steps)) / kSteps);
 }
 
+bool HardwareStatus::needs_software_veil() const {
+#ifdef CITSY_PICO_HW
+    return false;
+#else
+    return true;
+#endif
+}
+
 void HardwareStatus::apply_brightness() const {
 #ifdef CITSY_PICO_HW
     const int pin = backlight_pin();
-    if (pin < 0) return;
+    if (pin >= 0) {
+        const float n = static_cast<float>(std::max(1, brightness_)) / static_cast<float>(kSteps);
+        const float gamma = 2.8f;
+        const uint16_t pwm = static_cast<uint16_t>(std::pow(n, gamma) * 65535.0f + 0.5f);
+        pwm_set_gpio_level(static_cast<uint>(pin), pwm);
+        return;
+    }
 
-    const float n = static_cast<float>(std::max(1, brightness_)) / static_cast<float>(kSteps);
-    const float gamma = 2.8f;
-    const uint16_t pwm = static_cast<uint16_t>(std::pow(n, gamma) * 65535.0f + 0.5f);
-    pwm_set_gpio_level(static_cast<uint>(pin), pwm);
+    // SSD1351 has no backlight. Map 0–10 steps onto command 0xC7 (0–15).
+    const int steps = std::max(1, brightness_);
+    const uint8_t contrast = static_cast<uint8_t>(
+        std::max(1, (steps * 15) / kSteps));
+    ssd1351_set_master_contrast(contrast);
 #else
     (void)brightness_;
 #endif
